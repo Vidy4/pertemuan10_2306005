@@ -1,12 +1,12 @@
 import 'dart:convert';
 
 class ProductModel {
-  //inisialisasi variable data product
+  // inisialisasai variable data
   final String name;
   final String description;
   final int price;
 
-  //constructor
+  // contructor
   ProductModel({
     required this.name,
     required this.description,
@@ -23,19 +23,23 @@ class ProductModel {
   }
 
   // Map -> Object
-  factory ProductModel.fromMap(Map<String, dynamic> map) {
+  factory ProductModel.fromMap(
+    Map<String, dynamic> map,
+  ) {
     return ProductModel(
       name: map['name'] ?? '',
       description: map['description'] ?? '',
-      price: map['price'] ?? 0,
+      price: map['price']?.toInt() ?? 0,
     );
   }
 
-  // Object -> JSON String
+  // Object -> Json String
   String toJson() => jsonEncode(toMap());
 
-  // JSON String -> Object
+  // Json String -> Object
   factory ProductModel.fromJson(String source) {
-    return ProductModel.fromMap(jsonDecode(source));
+    return ProductModel.fromMap(
+      jsonDecode(source),
+    );
   }
 }
