@@ -120,16 +120,16 @@ class _ProductPageState extends State<ProductPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Produk", style: TextStyle(
-          color: Colors.red,
+          color: Colors.white,
           fontWeight: .bold
           ),
         ),
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.pink,
         leading: IconButton(
           onPressed:() => Navigator.pop(context),
           icon: Icon(
             Icons.chevron_left,
-            color: Colors.red,
+            color: Colors.white,
           )
         )
       ),
