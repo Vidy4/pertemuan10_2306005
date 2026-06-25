@@ -3,6 +3,9 @@ import 'package:pertemuan10_2306005/models/product_model.dart';
 import 'package:pertemuan10_2306005/pages/product_detail_page.dart';
 import 'package:pertemuan10_2306005/widgets/product_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 
 class ProductPage extends StatefulWidget {
   const ProductPage({super.key});
@@ -19,12 +22,12 @@ class _ProductPageState extends State<ProductPage> {
     List<String> productList = prefs.getStringList('products') ?? [];
     setState(() {
       products = productList
-      .map((item) => ProductModel.fromJson(item))
-      .toList();
+          .map((item) => ProductModel.fromJson(item))
+          .toList();
     });
   }
 
-   @override
+  @override
   void initState() {
     super.initState();
     loadProducts();
@@ -58,18 +61,77 @@ class _ProductPageState extends State<ProductPage> {
       products.removeAt(index);
     });
     await saveProducts();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Produk berhasil dihapus")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Produk berhasil dihapus")));
   }
 
-   void showForm({ProductModel? product, int? index}) {
-    TextEditingController nameController =
-        TextEditingController(text: product?.name ?? "");
-    TextEditingController descriptionController =
-        TextEditingController(text: product?.description ?? "");
-    TextEditingController priceController =
-        TextEditingController(text: product?.price.toString() ?? "");
+  // method untuk convert gambar
+  Future<String> convertimageToBase64(XFile image) async {
+    Uint8List bytes = await image.readAsBytes();
+
+    return base64Encode(bytes);
+  }
+
+  void showForm({ProductModel? product, int? index}) {
+    TextEditingController nameController = TextEditingController(
+      text: product?.name ?? "",
+    );
+    TextEditingController descriptionController = TextEditingController(
+      text: product?.description ?? "",
+    );
+    TextEditingController priceController = TextEditingController(
+      text: product?.price.toString() ?? "",
+    );
+    TextEditingController imgController = TextEditingController(
+      text: product?.image ?? "",
+    );
+
+    XFile? selectedImage;
+    final ImagePicker picker = ImagePicker();
+
+    // method untuk memilih gambar dari galeri
+    Future<void> pickImage(StateSetter setDialogState) async {
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+      if (image != null) {
+        setDialogState(() {
+          selectedImage = image;
+          imgController.text = image.path;
+        });
+      }
+    }
+
+    Widget previewImage() {
+      if (selectedImage != null) {
+        return FutureBuilder<Uint8List>(
+          future: selectedImage!.readAsBytes(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              // loader ketika memilih gambar
+              return const CircularProgressIndicator();
+            }
+
+            // jika sudah loadir maka tampilkan gambar dari memory
+            return Image.memory(
+              snapshot.data!,
+              width: 150,
+              height: 150,
+              fit: BoxFit.cover,
+            );
+          },
+        );
+      }
+      if (product?.image.isNotEmpty ?? false) {
+        return Image.memory(
+          base64Decode(product!.image),
+          width: 150,
+          height: 150,
+          fit: BoxFit.cover,
+        );
+      }
+      return const SizedBox.shrink();
+    }
 
     showDialog(
       context: context,
@@ -91,15 +153,29 @@ class _ProductPageState extends State<ProductPage> {
               decoration: const InputDecoration(labelText: "Harga"),
               keyboardType: TextInputType.number,
             ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: () => pickImage(setState),
+              icon: const Icon(Icons.image),
+              label: const Text("Pilih Gambar"),
+            ),
+            const SizedBox(height: 10),
+            previewImage(),
           ],
         ),
         actions: [
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              String imageBase64 = product?.image ?? "";
+              if (selectedImage != null) {
+                imageBase64 = await convertimageToBase64(selectedImage!);
+              }
+
               final newProduct = ProductModel(
                 name: nameController.text,
                 description: descriptionController.text,
                 price: int.tryParse(priceController.text) ?? 0,
+                image: imageBase64,
               );
               if (product == null) {
                 addProduct(newProduct);
@@ -119,60 +195,59 @@ class _ProductPageState extends State<ProductPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Produk", style: TextStyle(
-          color: Colors.white,
-          fontWeight: .bold
-          ),
+        title: Text(
+          "Produk",
+          style: TextStyle(color: Colors.red, fontWeight: .bold),
         ),
-        backgroundColor: Colors.pink,
+        backgroundColor: Colors.black,
         leading: IconButton(
-          onPressed:() => Navigator.pop(context),
-          icon: Icon(
-            Icons.chevron_left,
-            color: Colors.white,
-          )
-        )
+          onPressed: () => Navigator.pop(context),
+          icon: Icon(Icons.chevron_left, color: Colors.red),
+        ),
       ),
 
-    body: Container(
-      margin: EdgeInsets.all(20),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => showForm(),
-                  child: const Text("Tambah Produk"),
+      body: Container(
+        margin: EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => showForm(),
+                    child: const Text("Tambah Produk"),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Product list
-              Expanded(
-                child: products.isEmpty
-                    ? const Center(child: Text("Belum ada produk"))
-                    : ListView.builder(
-                        itemCount: products.length,
-                        itemBuilder: (context, index) {
-                          final product = products[index];
-                          return ProductCard(
-                            product: product, 
-                            onDelete: () => deleteProduct(index),
-                            onEdit: () => showForm(product: product, index: index),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => ProductDetailPages(product: product))
-                            )
-                          );
-                        },
-                      ),
-              ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 20),
+            // Product list
+            Expanded(
+              child: products.isEmpty
+                  ? const Center(child: Text("Belum ada produk"))
+                  : ListView.builder(
+                      itemCount: products.length,
+                      itemBuilder: (context, index) {
+                        final product = products[index];
+                        return ProductCard(
+                          product: product,
+                          onDelete: () => deleteProduct(index),
+                          onEdit: () =>
+                              showForm(product: product, index: index),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ProductDetailPages(product: product),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
-    ),
-
     );
   }
 }
